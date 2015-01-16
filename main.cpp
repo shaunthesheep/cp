@@ -3,12 +3,12 @@
  *
  *  Created on: Nov 13, 2014
  *      Author: marco
+ *		Edited by: anna
  */
 
 #include <gecode/driver.hh>
 #include <gecode/int.hh>
 #include <gecode/minimodel.hh>
-#include <gecode/float.hh>
 
 #include <algorithm>
 #include <iomanip>
@@ -22,11 +22,6 @@ class VRPSolver: public Script {
 protected:
 	Input *p_in;
 	int model;
-	//TASK3
-	IntVarArray load;				//loads in each vehicle
-	IntVarArray vehicle;			//vehicle numbers assigned to nodes
-	IntVar vehicles;
-
 
 public:
 	/// Model variants
@@ -34,6 +29,28 @@ public:
 		MODEL_TASK3, ///< K_LB
 		MODEL_TASK4, ///< VRP
 	};
+
+	VRPSolver(const InstanceOptions& opt, Input *in) :
+			p_in(in) {
+
+		int _n = p_in->size();
+		int _k = p_in->getKUB();
+
+		model = opt.model();
+
+		if (opt.model() == MODEL_TASK3) {
+			// your model
+			// branch on something
+		}
+		if (opt.model() == MODEL_TASK4) {
+			// Your model
+			// branch on something
+		}
+
+	}
+	;
+
+/*
 /// Setup model
 	VRPSolver(const InstanceOptions& opt, Input *in) :
 			p_in(in) { //, 
@@ -43,14 +60,15 @@ public:
 			
 			//load(*this, _k, 0, _c), vehicle(*this, _n, 0, _k-1) {
 
-		int _n = p_in->size();			//number of nodes
-		int _k = p_in->getKUB();		//upper bound
+		//int _n = p_in->size();			//number of nodes
+		//int _k = p_in->getKUB();		//upper bound
 		//p_in->preprocess();
 
 
 		model = opt.model();
 
 		if (opt.model() == MODEL_TASK3) {
+
 			// your model
 			int _l = p_in->getKLB();		//naive lower bound
 			int _c = static_cast<int>(p_in->getVehicles()[0].capacity);
@@ -110,6 +128,8 @@ public:
 	}
 	;
 
+*/
+
 	virtual void constrain(const Space& _b) {
 		// implement this or a cost function
 	}
@@ -139,6 +159,7 @@ public:
 /// Print solution
 	virtual void print(std::ostream& os) const {
 		if (model == MODEL_TASK3) {
+	/*
 			os << "Vehicles used: " << vehicles << " (from " << p_in->getKLB() << " and "<< p_in->getKUB() << " vehicles)." << std::endl;
 		    os << "Demand: " << p_in->getDemand()[0] <<std::endl;
 		    
@@ -163,9 +184,9 @@ public:
 		        if (!vehicle[i].assigned())
 		          os << "\t[" << i << "] = " << vehicle[i] << std::endl;
 		    }
+	*/
 		}
 		if (model == MODEL_TASK4) {
-			os << "Task 4 solution" << std::endl;
 		}
 	}
 	;
@@ -207,8 +228,7 @@ int main(int argc, char* argv[]) {
 	//cout << *p;
 	p->setKUB();
 	p->preprocess();
-	cout << "after preprocess: matrix  " << p->getDistanceMatrix()[1]<< std::endl;
-	cout << "instance size  " << p->size() << std::endl;
+	cout << *p;
 
 	cout << "Time limit: " << opt.time() / 1000 << "s" << endl;
 	cout << "Threads: " << opt.threads() << endl;
@@ -292,6 +312,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+	//delete p->getDistanceMatrix();
 	delete p;
 	return 0;
 }

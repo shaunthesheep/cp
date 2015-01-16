@@ -64,9 +64,11 @@ class Input {
 public:
 	Input(string file_name);
 	~Input() {
-		delete d;
+		//delete d;
+		delete [] d;
+		d = NULL;
 	}
-	;
+	//;
 	const unordered_map<arcKey, _arc, arcKeyHash, arcKeyEqual>& getArcs() const {
 		return arcs;
 	}
