@@ -136,12 +136,17 @@ Input::Input(string file_name) {
 	std::regex_match(name, cm, e);
 	if (cm.size() > 0) 
 		K = stoi(cm[1]);
+	else K =2;
 	
 	n = nodes.size();
 	rs = n+2*K;
 	int2node.reserve(n+2*K);
 	int2node.resize(n);
+	//for naive bin packing model
+	//demand.resize(n, 0);
+	//for binpacking
 	demand.resize(rs, 0);
+
 
 	//int tempD[rs*rs];
 	//d = tempD;
@@ -191,14 +196,6 @@ void Input::setKUB() {
 
 void Input::preprocess() {
 // See the section Addition for a list of things you could implement here
-
-	//find depot node & construct list of nodes
-	//n = nodes.size();
-	//int2node.reserve(n+2*K);
-	//int2node.resize(n);
-	//demand.resize(n);
-
-
 	demand[0] = 0;
 	if(depots.size()==1){
 		int i =0;
@@ -209,22 +206,20 @@ void Input::preprocess() {
 				demand[i] = j.second.demand;
 			} else {
 				int2node[0] = j.first;
-				demand[0] = j.second.demand; //should be 0
+				demand[0] = static_cast<int>(j.second.demand); //should be 0
 			}
 		}
 		
 		//starting nodes (S) and ending nodes (E) at n+1..n+2k
-		//vector<int> temp(2*K, int2node[0]);
-		//int2node.insert( int2node.end(), temp.begin(), temp.end() );
+		vector<int> temp(2*K, int2node[0]);
+		int2node.insert( int2node.end(), temp.begin(), temp.end() );
 
 	}
 
-	//*/
-
 	//matrix
 	// n = nodes.size();
-	//int rs = n+2*K;
-	//d = new int[rs*rs];
+	// rs = n+2*K;
+	// d = new int[rs*rs];
 	for(int i=0; i< n; i++){
 		for(int j=0; j< n; j++){
 			//distance between i and j
@@ -240,14 +235,18 @@ void Input::preprocess() {
 	}
 	maxD = maxD * rs;
 	
-	for(int i=0; i< n; i++){
-		for(int j=n; j< n+2*K; j++){
+	for(int j=n; j< n+2*K; j++){
+		for(int i=0; i< n; i++){
 			//copy first column of matrix - distances from the depot
 			d[i*rs + j] = d[i*rs];
 			//symmetry in the matrix
 			d[j*rs + i] = d[i*rs];
+
 		}
+		d[j] = 1;
+		d[j*rs] = 1;
 	}
+
 	//0 to strarting point of vehicle 1
 	d[0 + n] = 1;
 	d[n*rs + 0] = 1;
@@ -255,9 +254,11 @@ void Input::preprocess() {
 	d[0 + n+2*K-1] = 1;
 	d[(n+2*K-1)*rs + 0] = 1;
 
-	//*
 	for(int i=n; i< n+2*K; i++){
 		for(int j=n; j< n+2*K; j++){
+			if(i != j)
+				d[i*rs + j] = 1;
+			/*
 			//distance between i and j
 			if( (n+K)>i && i>=n && j>=(n+K) && (j-i==K-1))
 				d[i*rs + j] = 1;	//1 = min
@@ -265,11 +266,11 @@ void Input::preprocess() {
 				d[i*rs + j] = 1;
 			//else
 			//	d[i*rs + j] = 1000;
+			*/
 		}
 		d[(n+2*K-1)*rs + (n)] = 1;
 		d[(n)*rs + (n+2*K-1)] = 1;
 	}
-	//*/	
 }
 
 ostream& operator<<(ostream& os, const Input& pa) {

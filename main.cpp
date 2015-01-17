@@ -38,7 +38,7 @@ public:
 	VRPSolver(const InstanceOptions& opt, Input *in) :
 			p_in(in),
 			load(*this, p_in->getKUB(), 0, static_cast<int>(p_in->getVehicles()[0].capacity)), 
-			vehicle(*this, p_in->getRs(), 1, p_in->getKUB()),
+			vehicle(*this, p_in->getRs(), 0, p_in->getKUB()-1),
 			vehicles(*this, p_in->getKLB(), p_in->getKUB()),
 			succ(*this, p_in->getRs(), 0, p_in->getRs()-1),
 			total(*this, 0, p_in->getMaxD()){
@@ -56,16 +56,32 @@ public:
 			IntArgs sizes(p_in->getDemand());
 			binpacking(*this, load, vehicle, sizes);
 
+/*		//naive bin packing
+
+			IntArgs sizes(p_in->getDemand());
+			
+			int s = p_in->getTotdemand();
+		    // loads add up to item sizes
+		    linear(*this, load, IRT_EQ, s);
+		    // loads are equal to packed items
+		
+		    BoolVarArgs _x(*this, _n*_k, 0, 1);
+		    Matrix<BoolVarArgs> x(_x, _n, _k);
+		    for (int i=0; i<_n; i++)
+		      channel(*this, x.col(i), vehicle[i]);
+		    for (int j=0; j<_k; j++)
+		    	linear(*this, sizes, x.row(j), IRT_EQ, load[j]);
+*/
 			// All excess vehicle must be empty
 			for (int j=_l+1; j <= _k; j++)
 				rel(*this, (vehicles < j) == (load[j-1] == 0));
 
 			// Break symmetries
-			for (int i=1; i<n; i++)
+			for (int i=1; i<_n; i++)
 				if (p_in->getDemand(i-1) == p_in->getDemand(i))
 					rel(*this, vehicle[i-1] <= vehicle[i]);
 
-			/*
+/*		//additional constraints
 			// Pack items that require a bin for sure! (wlog)
 			{
 			int i = 0;
@@ -77,7 +93,7 @@ public:
 			  (spec.size(i-1) + spec.size(i) > spec.capacity()))
 			rel(*this, bin[i] == i);
 			}
-			*/
+*/
 				
 			// branch on something
 			branch(*this, vehicles, INT_VAL_MIN());
@@ -85,21 +101,26 @@ public:
 
 		}
 		if (opt.model() == MODEL_TASK4) {
-			// Your model
 
 			//number of vehicles given
 			dom(*this, vehicles, _k);
+
 			////bin packing
 			IntArgs sizes(p_in->getDemand());
 			binpacking(*this, load, vehicle, sizes);
-			
+			// Break symmetries
+			for (int i=1; i<_n; i++)
+				if (p_in->getDemand(i-1) == p_in->getDemand(i))
+					rel(*this, vehicle[i-1] <= vehicle[i]);
+//*
+
 			//assign starting nodes to vehicles
-			dom(*this, vehicle[0], 1);
+			dom(*this, vehicle[0], 0);
 			for(int i=0; i<_k; i++){
 				//assign starting nodes to vehicles
-				dom(*this, vehicle[_n+i], i+1);
+				dom(*this, vehicle[_n+i], i);
 				//assign ending nodes to vehicles
-				dom(*this, vehicle[_n+_k+i], i+1);
+				dom(*this, vehicle[_n+_k+i], i);
 			}
 			//new vehicle starts where old finished
 			for(int i=0; i<_k-1; i++)
@@ -109,10 +130,10 @@ public:
 			//the successor of a nonending node is served by the same vehicle
 			for(int i=0; i<_n+_k; i++)
 				element(*this, vehicle, succ[i], vehicle[i]);
-
+//*/
 			//cost matrix
 			IntArgs c (rs*rs, p_in->getDistanceMatrix());
-			//zero as infinity
+			//zero as infinity - no loops
 			for (int i=0; i<rs; i++)	
 		      for (int j=0; j<rs; j++)	
 		        if (p_in->dist(i,j) == 0)
@@ -169,6 +190,20 @@ public:
 	;
 /// Print solution
 	virtual void print(std::ostream& os) const {
+/*
+		os << "Distance matrix: " << std::endl;
+		for (int i=0; i< p_in->getRs(); i++){
+			for (int j=0; j< p_in->getRs(); j++)
+				os<< p_in->dist(i, j) << " ";
+			os << std::endl;
+		}
+		os << std::endl << std::endl;
+
+		for(int i=0; i<p_in->getDemand().size(); i++)
+			os << "Demands: " << p_in->getDemand()[i] << " \tint2node " << p_in->getInt2Node()[i]<<std::endl;
+		os << "Total demand: " << p_in->getTotdemand() <<std::endl;
+		os<< "Size of instance - customers rs: " << p_in->getRs() << std::endl;
+*/
 		if (model == MODEL_TASK3) {
 			os << "Vehicles used: " << vehicles << " (from " << p_in->getKLB() << " and "<< p_in->getKUB() << " vehicles)." << std::endl;
 		    os << "Demand: " << p_in->getDemand()[0] <<std::endl;
@@ -196,6 +231,30 @@ public:
 		    }
 		}
 		if (model == MODEL_TASK4) {
+			bool assigned = true;
+			for (int i=0; i<succ.size(); i++) {
+				if (!succ[i].assigned()) {
+					assigned = false;
+					break;
+				}
+			}
+			if (assigned) {
+				os << "\tTour: ";
+				int i=0;
+				do {
+					os << i << " -> ";
+					i=succ[i].val();
+				} while (i != 0);
+				os << 0 << std::endl;
+				os << "\tCost: " << total << std::endl;
+			} else {
+				os << "\tTour: " << std::endl;
+				for (int i=0; i<succ.size(); i++) {
+					os << "\t" << i << " -> " << succ[i] << std::endl;
+				}
+				os << "\tCost: " << total << std::endl;
+			}
+
 		}
 	}
 	;
@@ -275,6 +334,13 @@ int main(int argc, char* argv[]) {
 	t.start();
 	double elapsed;
 
+
+
+	for(int i=0; i<p->getDemand().size(); i++)
+			cout << "Demands: " << p->getDemand()[i] << " \tint2node " << p->getInt2Node()[i]<<std::endl;
+		cout << "Total demand: " << p->getTotdemand() <<std::endl;
+		cout<< "Size of instance - customers rs: " << p->getRs() << std::endl;
+
 	cout << "HERE" << std::endl;
 	VRPSolver* m = new VRPSolver(opt, p);
 	cout << "HERE" << std::endl;
@@ -297,7 +363,7 @@ int main(int argc, char* argv[]) {
 		//RBS<BAB, VRPSolver> e(m, so);
 		delete m;
 		while (VRPSolver* s = e.next()) {
-			s->print(cout);
+			//s->print(cout);
 			s->setSolution(out); // pass here the solution found to Output for drawing
 			out.draw();
 			delete s;
@@ -305,9 +371,9 @@ int main(int argc, char* argv[]) {
 			//cout << "Propagators: " << stat.propagate << endl; // see page 145 MPG
 			print_stats(stat);
 			cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
-
 			//break;
 		}
+		s->print(cout);
 		if (e.stopped()) {
 			cout << "WARNING: solver stopped, solution is not optimal!\n";
 			if (ts->stop(e.statistics(), so)) {
