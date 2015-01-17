@@ -109,6 +109,18 @@ public:
 	const int *getDistanceMatrix() const {
 		return d;
 	}
+	const int getDistanceMatrix(int i) const {
+		return d[i];
+	}
+	const int dist(int i, int j) const {
+		return d[i*rs + j];
+	}
+	const int getMaxD() const {
+		return maxD;
+	}
+	const int getRs() const {
+		return rs;
+	}
 	const int size() const {
 		return n;
 	}
@@ -145,6 +157,8 @@ protected:
 private:
 	int n;
 	int *d;
+	int rs;
+	int maxD;
 	int K_lb;
 	int K;
 	vector<int> int2node;

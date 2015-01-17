@@ -22,6 +22,11 @@ class VRPSolver: public Script {
 protected:
 	Input *p_in;
 	int model;
+	IntVarArray load;				//loads in each vehicle
+	IntVarArray vehicle;			//vehicle numbers assigned to nodes
+	IntVarArray succ;
+	IntVar vehicles;				//cost of bin packing
+	IntVar total;					//cost of tsp
 
 public:
 	/// Model variants
@@ -31,20 +36,83 @@ public:
 	};
 
 	VRPSolver(const InstanceOptions& opt, Input *in) :
-			p_in(in) {
+			p_in(in),
+			load(*this, p_in->getKUB(), 0, static_cast<int>(p_in->getVehicles()[0].capacity)), 
+			vehicle(*this, p_in->getRs(), 1, p_in->getKUB()),
+			vehicles(*this, p_in->getKLB(), p_in->getKUB()),
+			succ(*this, p_in->getRs(), 0, p_in->getRs()-1),
+			total(*this, 0, p_in->getMaxD()){
 
+		int _l = p_in->getKLB();
 		int _n = p_in->size();
 		int _k = p_in->getKUB();
+		int rs = p_in->getRs();
 
 		model = opt.model();
 
 		if (opt.model() == MODEL_TASK3) {
+			//vehicle = IntVarArray(*this, p_in->size()-1, 1, p_in->getKUB());
 			// your model
+			IntArgs sizes(p_in->getDemand());
+			binpacking(*this, load, vehicle, sizes);
+
+			// All excess bins must be empty
+			for (int j=_l+1; j <= _k; j++)
+				rel(*this, (vehicles < j) == (load[j-1] == 0));
+			
 			// branch on something
+			branch(*this, vehicles, INT_VAL_MIN());
+			branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
+
 		}
 		if (opt.model() == MODEL_TASK4) {
 			// Your model
+
+			//number of vehicles given
+			dom(*this, vehicles, _k);
+			////bin packing
+			IntArgs sizes(p_in->getDemand());
+			binpacking(*this, load, vehicle, sizes);
+			
+			//assign starting nodes to vehicles
+			dom(*this, vehicle[0], 1);
+			for(int i=0; i<_k; i++){
+				//assign starting nodes to vehicles
+				dom(*this, vehicle[_n+i], i+1);
+				//assign ending nodes to vehicles
+				dom(*this, vehicle[_n+_k+i], i+1);
+			}
+			//new vehicle starts where old finished
+			for(int i=0; i<_k-1; i++)
+				dom(*this, succ[_n+_k+i], _n+(i+1));
+			dom(*this, succ[_n+2*_k-1], 0);
+			dom(*this, succ[0], _n);
+
+			//cost matrix
+			IntArgs c (rs*rs, p_in->getDistanceMatrix());
+			//zero as infinity
+			for (int i=0; i<rs; i++)	
+		      for (int j=0; j<rs; j++)	
+		        if (p_in->dist(i,j) == 0)
+		          rel(*this, succ[i], IRT_NQ, j);
+
+
+		    // Cost of each edge
+			IntVarArgs costs(*this, rs, Int::Limits::min, Int::Limits::max);
+			// Enforce that the succesors yield a tour with appropriate costs
+			circuit(*this, c, succ, costs, total, opt.icl());
+
+			//connect both models somehow *******************  //
+
+
 			// branch on something
+			branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
+
+			// First enumerate cost values, prefer those that maximize cost reduction
+			branch(*this, costs, INT_VAR_REGRET_MAX_MAX(), INT_VAL_SPLIT_MIN());
+
+			// Then fix the remaining successors
+			branch(*this, succ,  INT_VAR_MIN_MIN(), INT_VAL_MIN());
 		}
 
 	}
@@ -140,7 +208,7 @@ public:
     		return vehicles;
     	}
     	if (opt.model() == MODEL_TASK4) {
-    		return 0;
+    		return total;
     	}
   	}*/
 
@@ -149,6 +217,11 @@ public:
 			Script(share, s), p_in(s.p_in) {
 		// remember to update your main variables!
 		model = s.model;
+		load.update(*this, share, s.load);
+    	vehicle.update(*this, share, s.vehicle);
+    	vehicles.update(*this, share, s.vehicles);
+		succ.update(*this, share, s.succ);
+    	total.update(*this, share, s.total);
 	}
 	;
 /// Copy during cloning
@@ -217,7 +290,7 @@ int main(int argc, char* argv[]) {
 	opt.model(VRPSolver::MODEL_TASK4);
 	opt.model(VRPSolver::MODEL_TASK3, "TASK3", "Find a lower bound to K");
 	opt.model(VRPSolver::MODEL_TASK4, "TASK4", "Find min tot length");
-	opt.instance("data/augerat-r/P/P-n016-k08.xml");
+	opt.instance("../data/augerat-r/P/P-n016-k08.xml");
 
 	opt.time(6 * 1000); // in milliseconds
 
@@ -228,6 +301,7 @@ int main(int argc, char* argv[]) {
 	//cout << *p;
 	p->setKUB();
 	p->preprocess();
+	cout << "demands:  " << p->getDemand().size() << std::endl;
 	cout << *p;
 
 	cout << "Time limit: " << opt.time() / 1000 << "s" << endl;

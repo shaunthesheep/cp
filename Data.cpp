@@ -128,16 +128,27 @@ Input::Input(string file_name) {
 		}
 	}
 
+
+
+	//TODO: embed it better
+	std::regex e(".*-k(\\d+)");
+	std::cmatch cm;   // same as std::match_results<const char*> cm;
+	std::regex_match(name, cm, e);
+	if (cm.size() > 0) 
+		K = stoi(cm[1]);
+	
 	n = nodes.size();
+	rs = n+2*K;
 	int2node.reserve(n+2*K);
 	int2node.resize(n);
-	demand.resize(n);
-	int rs = n+2*K;
+	demand.resize(rs, 0);
+
 	//int tempD[rs*rs];
 	//d = tempD;
 	d = new int[rs*rs];
 	for(int i=0; i<rs*rs; i++)
 		d[i] = 0;
+	maxD = 0;
 
 }
 
@@ -203,8 +214,8 @@ void Input::preprocess() {
 		}
 		
 		//starting nodes (S) and ending nodes (E) at n+1..n+2k
-		vector<int> temp(2*K, int2node[0]);
-		int2node.insert( int2node.end(), temp.begin(), temp.end() );
+		//vector<int> temp(2*K, int2node[0]);
+		//int2node.insert( int2node.end(), temp.begin(), temp.end() );
 
 	}
 
@@ -212,40 +223,51 @@ void Input::preprocess() {
 
 	//matrix
 	// n = nodes.size();
-	int rs = n+2*K;
+	//int rs = n+2*K;
 	//d = new int[rs*rs];
 	for(int i=0; i< n; i++){
 		for(int j=0; j< n; j++){
 			//distance between i and j
-			if(i!=j)
+			if(i!=j){
 				//d[i*rs + j] = static_cast<int>(Euclidean(int2node[i], int2node[j])*pow(10, decimals));
-				d[i*rs + j] = 3; //static_cast<int>(arcs[make_pair(int2node[i],int2node[j])].length*pow(10, decimals));
-			else
-				d[i*rs + j] = 1000;//INT_MAX;
+				int distance = static_cast<int>(arcs[make_pair(int2node[i],int2node[j])].length*pow(10, decimals));
+				d[i*rs + j] = distance;
+				maxD = std::max(maxD, distance);
+			}
+			//else
+			//	d[i*rs + j] = 1000;//INT_MAX;
 		}
 	}
-	//*
-	for(int i=0; i<= n; i++){
-		for(int j=n+1; j<= n+2*K; j++){
+	maxD = maxD * rs;
+	
+	for(int i=0; i< n; i++){
+		for(int j=n; j< n+2*K; j++){
 			//copy first column of matrix - distances from the depot
 			d[i*rs + j] = d[i*rs];
 			//symmetry in the matrix
 			d[j*rs + i] = d[i*rs];
 		}
 	}
-	
-	for(int i=n+1; i<= n+2*K; i++){
-		for(int j=n+1; j<= n+2*K; j++){
+	//0 to strarting point of vehicle 1
+	d[0 + n] = 1;
+	d[n*rs + 0] = 1;
+	//ending point of Kth vehicle to 0
+	d[0 + n+2*K-1] = 1;
+	d[(n+2*K-1)*rs + 0] = 1;
+
+	//*
+	for(int i=n; i< n+2*K; i++){
+		for(int j=n; j< n+2*K; j++){
 			//distance between i and j
-			if( (n+K)>i && i>n && j>(n+K) && (j-i==K-1))
-				d[i*rs + j] = 0;
-			else if((n+K)>j && j>n && i>(n+K) && (i-j==K-1))
-				d[i*rs + j] = 0;
-			else
-				d[i*rs + j] = 1000;
+			if( (n+K)>i && i>=n && j>=(n+K) && (j-i==K-1))
+				d[i*rs + j] = 1;	//1 = min
+			else if( (n+K)>j && j>=n && i>=(n+K) && (i-j==K-1))
+				d[i*rs + j] = 1;
+			//else
+			//	d[i*rs + j] = 1000;
 		}
-		d[(n+2*K)*rs + (n+1)] = 0;
-		d[(n+1)*rs + (n+2*K)] = 0;
+		d[(n+2*K-1)*rs + (n)] = 1;
+		d[(n)*rs + (n+2*K-1)] = 1;
 	}
 	//*/	
 }
