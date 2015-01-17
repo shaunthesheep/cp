@@ -143,6 +143,9 @@ public:
 	const vector<int> getDemand() const{
 		return demand;
 	}
+	const int getDemand(int i) const{
+		return demand[i];
+	}
 protected:
 	double (Input::*fdist)(int, int);
 	int decimals;
