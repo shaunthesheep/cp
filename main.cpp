@@ -18,7 +18,7 @@
 
 using namespace Gecode;
 
-class VRPSolver: public Script {
+class VRPSolver: public Space  {
 protected:
 	Input *p_in;
 	int model;
@@ -158,22 +158,31 @@ public:
 	;
 
 	virtual void constrain(const Space& _b) {
-		// implement this or a cost function
+		const VRPSolver& b = static_cast<const VRPSolver&>(_b);
+		if (model == MODEL_TASK3) {
+			IntVar b_v(b.vehicles);
+    		rel(*this, vehicles, IRT_LE, b_v);
+    	}
+    	if (model == MODEL_TASK4) {
+    		IntVar b_t(b.total);
+    		rel(*this, total, IRT_LE, b_t);
+    	}
 	}
 	;
+
 	/*
 	virtual IntVar cost(void) const {
-		if (opt.model() == MODEL_TASK3) {
+		if (model == MODEL_TASK3) {
     		return vehicles;
     	}
-    	if (opt.model() == MODEL_TASK4) {
+    	if (model == MODEL_TASK4) {
     		return total;
     	}
   	}*/
 
 /// Constructor for cloning s
 	VRPSolver(bool share, VRPSolver& s) :
-			Script(share, s), p_in(s.p_in) {
+			Space(share, s), p_in(s.p_in) {
 		// remember to update your main variables!
 		model = s.model;
 		load.update(*this, share, s.load);
@@ -265,7 +274,13 @@ public:
 		// remember that the first and last element of each route list
 		// must be the depot
 		// clear first:
-		// o.routes.clear();
+		o.routes.clear();
+		//vector<int> successor;
+		//list<int> order;
+		//for(int i=0; i< p_in->getRs(); i++){
+		//	order.push_back(succ[i].val());
+		//}
+		//o.routes[0]=order;
 	}
 	;
 };
@@ -282,7 +297,7 @@ void print_stats(Search::Statistics &stat) {
 int main(int argc, char* argv[]) {
 
 	InstanceOptions opt("VRPSolver");
-	opt.model(VRPSolver::MODEL_TASK3);
+	opt.model(VRPSolver::MODEL_TASK4);
 	opt.model(VRPSolver::MODEL_TASK3, "TASK3", "Find a lower bound to K");
 	opt.model(VRPSolver::MODEL_TASK4, "TASK4", "Find min tot length");
 	opt.instance("../data/augerat-r/P/P-n016-k08.xml");
@@ -296,6 +311,7 @@ int main(int argc, char* argv[]) {
 	//cout << *p;
 	p->setKUB();
 	p->preprocess();
+
 	cout << "demands:  " << p->getDemand().size() << std::endl;
 	cout << *p;
 
@@ -362,6 +378,7 @@ int main(int argc, char* argv[]) {
 		//BAB<VRPSolver> e(m, so);
 		//RBS<BAB, VRPSolver> e(m, so);
 		delete m;
+		int currentBest = p->getMaxD();
 		while (VRPSolver* s = e.next()) {
 			//s->print(cout);
 			s->setSolution(out); // pass here the solution found to Output for drawing
@@ -373,7 +390,7 @@ int main(int argc, char* argv[]) {
 			cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
 			//break;
 		}
-		s->print(cout);
+
 		if (e.stopped()) {
 			cout << "WARNING: solver stopped, solution is not optimal!\n";
 			if (ts->stop(e.statistics(), so)) {

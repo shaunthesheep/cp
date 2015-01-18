@@ -303,6 +303,7 @@ Output::Output(const Input& my_in) :
 // output object based in the input object
 	routes.clear();
 // Insert here your code for the solution you are passing from the CP solver
+	/*
 	if (strcmp(in.getName(), "toy") == 0) {
 		int route1[] = { 0, 6, 4, 1, 2, 7, 0 };
 		std::list<int> lroute1(route1, route1 + sizeof(route1) / sizeof(int));
@@ -312,6 +313,7 @@ Output::Output(const Input& my_in) :
 
 		routes[0] = lroute1;
 		routes[1] = lroute2;
+		routes[2] = lroute2;
 	} else { //Random
 		vector<int> successor;
 		for (auto a : in.getNodes()) {
@@ -331,6 +333,7 @@ Output::Output(const Input& my_in) :
 		routes[0] = route0;
 		routes[1] = route1;
 	}
+	*/
 }
 
 Output& Output::operator=(const Output& out) {
