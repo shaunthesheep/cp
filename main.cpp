@@ -170,16 +170,6 @@ public:
 	}
 	;
 
-	/*
-	virtual IntVar cost(void) const {
-		if (model == MODEL_TASK3) {
-    		return vehicles;
-    	}
-    	if (model == MODEL_TASK4) {
-    		return total;
-    	}
-  	}*/
-
 /// Constructor for cloning s
 	VRPSolver(bool share, VRPSolver& s) :
 			Space(share, s), p_in(s.p_in) {
@@ -274,7 +264,34 @@ public:
 		// remember that the first and last element of each route list
 		// must be the depot
 		// clear first:
+		int _n = p_in->size();
+		int _k = p_in->getKUB();
 		o.routes.clear();
+		for(int i=0; i<_k; i++){
+			vector<int> route;
+			route.push_back(p_in->getInt2Node(0));
+			if(succ[_n+i].assigned()){
+				int next = succ[_n+i].val();
+				while(true){
+					if(next==_n+_k+i)
+						break;
+					route.push_back(p_in->getInt2Node(next));
+					if(succ[next].assigned())
+						next = succ[next].val();
+					else{
+						route.clear();
+						route.push_back(p_in->getInt2Node(0));
+						break;
+					}
+				}
+			}
+
+			route.push_back(p_in->getInt2Node(0));
+			std::list<int> routel;
+			std::copy( route.begin(), route.end(), std::back_inserter( routel ) );
+			//o.routes.insert ( std::pair<int, list<int> >(i,routel) );
+			o.routes[i] = routel;
+		}
 		//vector<int> successor;
 		//list<int> order;
 		//for(int i=0; i< p_in->getRs(); i++){
@@ -300,7 +317,7 @@ int main(int argc, char* argv[]) {
 	opt.model(VRPSolver::MODEL_TASK4);
 	opt.model(VRPSolver::MODEL_TASK3, "TASK3", "Find a lower bound to K");
 	opt.model(VRPSolver::MODEL_TASK4, "TASK4", "Find min tot length");
-	opt.instance("../data/augerat-r/P/P-n016-k08.xml");
+	opt.instance("../data/augerat-r/P/P-n019-k02.xml");
 
 	opt.time(6 * 1000); // in milliseconds
 
@@ -385,10 +402,10 @@ int main(int argc, char* argv[]) {
 			out.draw();
 			delete s;
 			stat = e.statistics();
-			//cout << "Propagators: " << stat.propagate << endl; // see page 145 MPG
-			print_stats(stat);
-			cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
-			//break;
+			////cout << "Propagators: " << stat.propagate << endl; // see page 145 MPG
+			//print_stats(stat);
+			//cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
+			////break;
 		}
 
 		if (e.stopped()) {

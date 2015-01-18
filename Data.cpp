@@ -302,6 +302,7 @@ Output::Output(const Input& my_in) :
 // Insert the code that initialize the data structures of the
 // output object based in the input object
 	routes.clear();
+	//routes.resize(in->size(), map<int, list<int> > routes);
 // Insert here your code for the solution you are passing from the CP solver
 	/*
 	if (strcmp(in.getName(), "toy") == 0) {
