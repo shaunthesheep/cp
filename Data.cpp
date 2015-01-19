@@ -26,19 +26,6 @@ Input::Input(string file_name) {
 	if (doc.ErrorID() != 0)
 		exit(EXIT_FAILURE);
 
-	//XMLElement* infoElement =
-	//doc.FirstChildElement("instance")->FirstChildElement("info");
-
-	//XMLNode* networkElement =
-	//	doc.FirstChild("instance")->FirstChild("network");
-	/*(XMLNode* node = networkElement->FirstChildElement("node");
-	 do {
-	 XMLElement *pt = node->ToElement();
-	 int n = pt->QueryIntAttribute("id", &n);
-	 printf("node: %d\n", n);
-	 } while (node = node->NextSibling());
-	 */
-
 	XMLElement *pRoot, *pelem;
 	pRoot = doc.FirstChildElement("instance");
 	for (pelem = pRoot->FirstChildElement(); pelem != NULL; pelem = pelem->NextSiblingElement()) {
@@ -128,8 +115,6 @@ Input::Input(string file_name) {
 		}
 	}
 
-
-
 	//TODO: embed it better
 	std::regex e(".*-k(\\d+)");
 	std::cmatch cm;   // same as std::match_results<const char*> cm;
@@ -146,15 +131,10 @@ Input::Input(string file_name) {
 	//demand.resize(n, 0);
 	//for binpacking
 	demand.resize(rs, 0);
-
-
-	//int tempD[rs*rs];
-	//d = tempD;
 	d = new int[rs*rs];
 	for(int i=0; i<rs*rs; i++)
 		d[i] = 0;
 	maxD = 0;
-
 }
 
 double Input::Euclidean(int i, int j) {
@@ -164,8 +144,6 @@ double Input::Euclidean(int i, int j) {
 }
 
 void Input::clower() {
-	// Write here your method
-	
 	if(!vehicles.empty())
 		K_lb = ceil(getTotdemand()/vehicles[0].capacity);
 	else
@@ -183,8 +161,6 @@ void Input::setKUB() {
 	if (cm.size() > 0) {
 		std::cout << "K defined as " << cm[1] << " in the instance name\n";
 		K = stoi(cm[1]);
-		//for (i=0; i<cm.size(); ++i) {
-		//   std::cout << "[" << cm[i] << "] ";
 	} else {
 		cout << "K not defined in the instance name.\n What should be used instead?\n";
 		K = K_lb; //exit(1);
@@ -208,18 +184,13 @@ void Input::preprocess() {
 				int2node[0] = j.first;
 				demand[0] = static_cast<int>(j.second.demand); //should be 0
 			}
-		}
-		
+		}	
 		//starting nodes (S) and ending nodes (E) at n+1..n+2k
 		vector<int> temp(2*K, int2node[0]);
 		int2node.insert( int2node.end(), temp.begin(), temp.end() );
-
 	}
 
 	//matrix
-	// n = nodes.size();
-	// rs = n+2*K;
-	// d = new int[rs*rs];
 	for(int i=0; i< n; i++){
 		for(int j=0; j< n; j++){
 			//distance between i and j
@@ -229,8 +200,6 @@ void Input::preprocess() {
 				d[i*rs + j] = distance;
 				maxD = std::max(maxD, distance);
 			}
-			//else
-			//	d[i*rs + j] = 1000;//INT_MAX;
 		}
 	}
 	maxD = maxD * rs;
@@ -241,7 +210,6 @@ void Input::preprocess() {
 			d[i*rs + j] = d[i*rs];
 			//symmetry in the matrix
 			d[j*rs + i] = d[i*rs];
-
 		}
 		d[j] = 1;
 		d[j*rs] = 1;
@@ -258,15 +226,6 @@ void Input::preprocess() {
 		for(int j=n; j< n+2*K; j++){
 			if(i != j)
 				d[i*rs + j] = 1;
-			/*
-			//distance between i and j
-			if( (n+K)>i && i>=n && j>=(n+K) && (j-i==K-1))
-				d[i*rs + j] = 1;	//1 = min
-			else if( (n+K)>j && j>=n && i>=(n+K) && (i-j==K-1))
-				d[i*rs + j] = 1;
-			//else
-			//	d[i*rs + j] = 1000;
-			*/
 		}
 		d[(n+2*K-1)*rs + (n)] = 1;
 		d[(n)*rs + (n+2*K-1)] = 1;
@@ -288,11 +247,6 @@ ostream& operator<<(ostream& os, const Input& pa) {
 	for (_vehicle v : pa.vehicles)
 		os << "Vehicle type " << v.type << ": from " << v.departure_node << " to " << v.arrival_node
 				<< " C: " << v.capacity << endl;
-	//os << g.name << " (" << g.type<<") ";
-	//for (unsigned i = 0;i<pa.guests.size();i++)
-	//	os<<pa.guests[i].name<< " (" << pa.guests[i].type<<") ";
-
-	//os << "Distance matrix [1]" << *(pa.d+1) << " [3] " << *(pa.d+3) <<endl;
 	os << endl;
 	return os;
 }
@@ -302,64 +256,43 @@ Output::Output(const Input& my_in) :
 // Insert the code that initialize the data structures of the
 // output object based in the input object
 	routes.clear();
-	//routes.resize(in->size(), map<int, list<int> > routes);
-// Insert here your code for the solution you are passing from the CP solver
-	/*
-	if (strcmp(in.getName(), "toy") == 0) {
-		int route1[] = { 0, 6, 4, 1, 2, 7, 0 };
-		std::list<int> lroute1(route1, route1 + sizeof(route1) / sizeof(int));
-
-		int route2[] = { 0, 9, 5, 3, 8, 0 };
-		std::list<int> lroute2(route2, route2 + sizeof(route2) / sizeof(int));
-
-		routes[0] = lroute1;
-		routes[1] = lroute2;
-		routes[2] = lroute2;
-	} else { //Random
-		vector<int> successor;
-		for (auto a : in.getNodes()) {
-			if (a.second.type != 0)
-				successor.push_back(a.first);
-		}
-		std::random_device rd;
-		std::shuffle(successor.begin(), successor.end(), rd);
-		//std::copy(successor.begin(), successor.end(), std::ostream_iterator<int>(std::cout, " "));
-		//std::cout << "\n";
-		list<int> route0(successor.begin(), successor.begin() + in.getNodes().size() / 2);
-		route0.push_front(in.getDepot(0));
-		route0.push_back(in.getDepot(0));
-		list<int> route1(successor.begin() + in.getNodes().size() / 2, successor.end());
-		route1.push_front(in.getDepot(0));
-		route1.push_back(in.getDepot(0));
-		routes[0] = route0;
-		routes[1] = route1;
-	}
-	*/
+	//done by setSolution() in main.cpp
 }
 
 Output& Output::operator=(const Output& out) {
 // Insert the code that copies all data structures of the
 // output object from the ones of the parameter out
 // (excluding the reference to the input object, that is constant)
+	routes.clear();
+	for (auto r : out.routes) {
+		routes.insert(r);
+	}
 	return *this;
 }
 
 ostream& operator<<(ostream& os, const Output& out) {
 // Insert the code that writes the output object
 	double total_length = 0;
-	for (auto r : out.routes) {
-		os << "Route " << r.first << ": ";
-		std::copy(r.second.begin(), r.second.end(), std::ostream_iterator<int>(os, " "));
-		os << "\n";
-		list<int>::iterator pfrom, pto;
-		pto = pfrom = r.second.begin();
-		pto++;
-		while (pto != r.second.end()) {
-			total_length += out.in.getArc(*pfrom, *pto).length;
-			pfrom = pto++;
+	if(out.routes.at(0).size() > 2){
+		for (auto r : out.routes) {
+			os << "Route " << r.first << ": ";
+			std::copy(r.second.begin(), r.second.end(), std::ostream_iterator<int>(os, " "));
+			os << "\n";
+			list<int>::iterator pfrom, pto;
+			pto = pfrom = r.second.begin();
+			pto++;
+			while (pto != r.second.end()) {
+				total_length += out.in.getArc(*pfrom, *pto).length;
+				pfrom = pto++;
+			}
 		}
+		cout<<"TotLength: "<<total_length<<endl;
+	} else {
+		if(!out.routes.empty())
+			os << "K = " << out.routes.at(0).front()<< endl;
+		else
+			os << "K not decided yet! " << endl;
 	}
-	cout<<"TotLength: "<<total_length<<endl;
 	return os;
 }
 
@@ -494,7 +427,7 @@ void Output::draw() {
 			sprintf(buf, "<line stroke-width=\'%f\'", tmp);
 			os << buf;
 			//		sprintf(buf, " style =\"stroke:rgb(%d,%d,%d);stroke-width:\'%f\'\"", rbg1, rbg2, rbg3,1.1 * tmp);
-			sprintf(buf, " style =\"stroke:%s;stroke-width:\'%f\'\"", ColorValues[nr], 1.1 * tmp);
+			sprintf(buf, " style =\"stroke:#%s;stroke-width:\'%f\'\"", ColorValues[nr], 1.1 * tmp);
 			os << buf;
 			os << " marker-end=\"url(#triangle)\" marker-mid=\"url(#triangle)\" ";
 			sprintf(buf, " x1=\'%f\' y1=\'%f\' x2=\'%f\' y2=\'%f\'/>\n", in.getNode(*ptail).cx,

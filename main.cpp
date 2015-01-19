@@ -139,6 +139,8 @@ public:
 		        if (p_in->dist(i,j) == 0)
 		          rel(*this, succ[i], IRT_NQ, j);
 
+		    distinct(*this, succ);
+
 		    // Cost of each edge
 			IntVarArgs costs(*this, rs, Int::Limits::min, Int::Limits::max);
 			// Enforce that the succesors yield a tour with appropriate costs
@@ -189,20 +191,6 @@ public:
 	;
 /// Print solution
 	virtual void print(std::ostream& os) const {
-/*
-		os << "Distance matrix: " << std::endl;
-		for (int i=0; i< p_in->getRs(); i++){
-			for (int j=0; j< p_in->getRs(); j++)
-				os<< p_in->dist(i, j) << " ";
-			os << std::endl;
-		}
-		os << std::endl << std::endl;
-
-		for(int i=0; i<p_in->getDemand().size(); i++)
-			os << "Demands: " << p_in->getDemand()[i] << " \tint2node " << p_in->getInt2Node()[i]<<std::endl;
-		os << "Total demand: " << p_in->getTotdemand() <<std::endl;
-		os<< "Size of instance - customers rs: " << p_in->getRs() << std::endl;
-*/
 		if (model == MODEL_TASK3) {
 			os << "Vehicles used: " << vehicles << " (from " << p_in->getKLB() << " and "<< p_in->getKUB() << " vehicles)." << std::endl;
 		    os << "Demand: " << p_in->getDemand()[0] <<std::endl;
@@ -264,40 +252,44 @@ public:
 		// remember that the first and last element of each route list
 		// must be the depot
 		// clear first:
-		int _n = p_in->size();
-		int _k = p_in->getKUB();
 		o.routes.clear();
-		for(int i=0; i<_k; i++){
-			vector<int> route;
-			route.push_back(p_in->getInt2Node(0));
-			if(succ[_n+i].assigned()){
-				int next = succ[_n+i].val();
-				while(true){
-					if(next==_n+_k+i)
-						break;
-					route.push_back(p_in->getInt2Node(next));
-					if(succ[next].assigned())
-						next = succ[next].val();
-					else{
-						route.clear();
-						route.push_back(p_in->getInt2Node(0));
-						break;
+		if (model == MODEL_TASK3) {
+			vector<int> veh;
+			if(vehicles.assigned()){
+				veh.push_back(vehicles.val());
+				std::list<int> vehK;
+				std::copy( veh.begin(), veh.end(), std::back_inserter( vehK ) );
+				o.routes[0] = vehK;
+			}
+		}
+		if (model == MODEL_TASK4) {
+			int _n = p_in->size();
+			int _k = p_in->getKUB();
+			for(int i=0; i<_k; i++){
+				vector<int> route;
+				route.push_back(p_in->getInt2Node(0));
+				if(succ[_n+i].assigned()){
+					int next = succ[_n+i].val();
+					while(true){
+						if(next==_n+_k+i)
+							break;
+						route.push_back(p_in->getInt2Node(next));
+						if(succ[next].assigned())
+							next = succ[next].val();
+						else{
+							route.clear();
+							route.push_back(p_in->getInt2Node(0));
+							break;
+						}
 					}
 				}
-			}
 
-			route.push_back(p_in->getInt2Node(0));
-			std::list<int> routel;
-			std::copy( route.begin(), route.end(), std::back_inserter( routel ) );
-			//o.routes.insert ( std::pair<int, list<int> >(i,routel) );
-			o.routes[i] = routel;
+				route.push_back(p_in->getInt2Node(0));
+				std::list<int> routel;
+				std::copy( route.begin(), route.end(), std::back_inserter( routel ) );
+				o.routes[i] = routel;
+			}
 		}
-		//vector<int> successor;
-		//list<int> order;
-		//for(int i=0; i< p_in->getRs(); i++){
-		//	order.push_back(succ[i].val());
-		//}
-		//o.routes[0]=order;
 	}
 	;
 };
@@ -319,7 +311,7 @@ int main(int argc, char* argv[]) {
 	opt.model(VRPSolver::MODEL_TASK4, "TASK4", "Find min tot length");
 	opt.instance("../data/augerat-r/P/P-n019-k02.xml");
 
-	opt.time(6 * 1000); // in milliseconds
+	opt.time(10 * 1000); // in milliseconds
 
 	opt.parse(argc, argv);
 
@@ -328,13 +320,13 @@ int main(int argc, char* argv[]) {
 	//cout << *p;
 	p->setKUB();
 	p->preprocess();
-
+/*
 	cout << "demands:  " << p->getDemand().size() << std::endl;
 	cout << *p;
 
 	cout << "Time limit: " << opt.time() / 1000 << "s" << endl;
 	cout << "Threads: " << opt.threads() << endl;
-
+*/
 	// This is to stop the search at the time limit imposed
 	Search::Options so;
 	Search::TimeStop* ts;
@@ -343,14 +335,23 @@ int main(int argc, char* argv[]) {
 
 	// For Restarts
 	Search::Cutoff* c;
+	int b;
 	switch (opt.restart()) {
-	case RM_NONE:
+	case RM_NONE: //No restarts.
 		c = Search::Cutoff::constant(std::numeric_limits<unsigned long>::max());
 		break;
-	case RM_LUBY:
+	case RM_LUBY: //Restart with Luby sequence. 1,1,2,1,1,2,4,1,1,2,1,1,2,4,8,...
 		c = Search::Cutoff::luby(opt.restart_scale());
 		break;
-		// add here other cases
+	case RM_CONSTANT: //Restart with constant sequence.
+		c = Search::Cutoff::constant(opt.restart_scale());
+		break;
+	case RM_GEOMETRIC: //Restart with geometric sequence.
+		c = Search::Cutoff::geometric(opt.restart_scale(),b);   // b???
+		break;
+	case RM_LINEAR: //Restart with linear sequence.
+		c = Search::Cutoff::linear(opt.restart_scale());
+		break;
 	}
 	so.cutoff = c;
 	cout << "Restarts: " << opt.restart() << endl;
@@ -361,22 +362,18 @@ int main(int argc, char* argv[]) {
 	cout << "NoGood Limit: " << so.nogoods_limit << endl;
 
 	Search::Statistics stat;
-
 	// Let's start the Timer
 	Support::Timer t;
 	t.start();
 	double elapsed;
 
-
-
+/*
 	for(int i=0; i<p->getDemand().size(); i++)
 			cout << "Demands: " << p->getDemand()[i] << " \tint2node " << p->getInt2Node()[i]<<std::endl;
 		cout << "Total demand: " << p->getTotdemand() <<std::endl;
 		cout<< "Size of instance - customers rs: " << p->getRs() << std::endl;
-
-	cout << "HERE" << std::endl;
+*/
 	VRPSolver* m = new VRPSolver(opt, p);
-	cout << "HERE" << std::endl;
 	SpaceStatus status = m->status();
 	m->print(cout);
 	if (status == SS_FAILED)
@@ -391,15 +388,15 @@ int main(int argc, char* argv[]) {
 	Output out(*p);
 
 	try {
-		DFS<VRPSolver> e(m, so);
-		//BAB<VRPSolver> e(m, so);
+		//DFS<VRPSolver> e(m, so);
+		BAB<VRPSolver> e(m, so);
 		//RBS<BAB, VRPSolver> e(m, so);
 		delete m;
 		int currentBest = p->getMaxD();
 		while (VRPSolver* s = e.next()) {
 			//s->print(cout);
 			s->setSolution(out); // pass here the solution found to Output for drawing
-			out.draw();
+			//out.draw();
 			delete s;
 			stat = e.statistics();
 			////cout << "Propagators: " << stat.propagate << endl; // see page 145 MPG
@@ -407,6 +404,7 @@ int main(int argc, char* argv[]) {
 			//cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
 			////break;
 		}
+		out.draw();
 
 		if (e.stopped()) {
 			cout << "WARNING: solver stopped, solution is not optimal!\n";
@@ -421,8 +419,7 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Gecode exception: " << e.what() << std::endl;
 		return 1;
 	}
-
-	//delete p->getDistanceMatrix();
+	
 	delete p;
 	return 0;
 }
