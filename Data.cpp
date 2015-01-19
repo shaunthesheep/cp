@@ -255,7 +255,7 @@ Output::Output(const Input& my_in) :
 		in(my_in) {
 // Insert the code that initialize the data structures of the
 // output object based in the input object
-	routes.clear();
+	//routes.clear();
 	//done by setSolution() in main.cpp
 }
 
@@ -273,6 +273,10 @@ Output& Output::operator=(const Output& out) {
 ostream& operator<<(ostream& os, const Output& out) {
 // Insert the code that writes the output object
 	double total_length = 0;
+	if(out.routes.empty()){
+		os << "Map is empty" <<endl;
+		return os;
+	}
 	if(out.routes.at(0).size() > 2){
 		for (auto r : out.routes) {
 			os << "Route " << r.first << ": ";

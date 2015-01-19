@@ -47,6 +47,7 @@ public:
 		int _n = p_in->size();
 		int _k = p_in->getKUB();
 		int rs = p_in->getRs();
+		int _c = static_cast<int>(p_in->getVehicles()[0].capacity);
 
 		model = opt.model();
 
@@ -76,28 +77,19 @@ public:
 			for (int j=_l+1; j <= _k; j++)
 				rel(*this, (vehicles < j) == (load[j-1] == 0));
 
+			// pack items that require a vehicle
+		    for (int i=0; (i < _n) && (i < _k) && (p_in->getDemand()[i] * 2 > _c); i++)
+		      rel(*this, vehicle[i] == i);
+
 			// Break symmetries
 			for (int i=1; i<_n; i++)
 				if (p_in->getDemand(i-1) == p_in->getDemand(i))
 					rel(*this, vehicle[i-1] <= vehicle[i]);
-
-/*		//additional constraints
-			// Pack items that require a bin for sure! (wlog)
-			{
-			int i = 0;
-			// These items all need a bin due to their own size
-			for (; (i < n) && (i < m) && (spec.size(i) * 2 > spec.capacity()); i++)
-			rel(*this, bin[i] == i);
-			// Check if the next item cannot fit to position i-1
-			if ((i < n) && (i < m) && (i > 0) && 
-			  (spec.size(i-1) + spec.size(i) > spec.capacity()))
-			rel(*this, bin[i] == i);
-			}
-*/
 				
 			// branch on something
+			branch(*this, vehicle, INT_VAR_MAX_MAX(), INT_VAL_MAX());
+			//branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
 			branch(*this, vehicles, INT_VAL_MIN());
-			branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
 
 		}
 		if (opt.model() == MODEL_TASK4) {
@@ -108,11 +100,9 @@ public:
 			////bin packing
 			IntArgs sizes(p_in->getDemand());
 			binpacking(*this, load, vehicle, sizes);
-			// Break symmetries
-			for (int i=1; i<_n; i++)
-				if (p_in->getDemand(i-1) == p_in->getDemand(i))
-					rel(*this, vehicle[i-1] <= vehicle[i]);
-//*
+			// pack items that require a vehicle
+		    for (int i=0; (i < _n) && (i < _k) && (p_in->getDemand()[i] * 2 > _c); i++)
+		      rel(*this, vehicle[i] == i);
 
 			//assign starting nodes to vehicles
 			dom(*this, vehicle[0], 0);
@@ -121,7 +111,16 @@ public:
 				dom(*this, vehicle[_n+i], i);
 				//assign ending nodes to vehicles
 				dom(*this, vehicle[_n+_k+i], i);
+//?				//breaking symmetry within each route
+				for(int j=1; j<_n; j++){
+					BoolVar bs(*this, 0, 1);
+					BoolVar be(*this, 0, 1);
+					rel(*this, succ[j] , IRT_EQ, (_n+_k+i) , be);
+					rel(*this, succ[_n+i] , IRT_LE, j, bs);
+					rel(*this, be, BOT_IMP,  bs, 1);
+				}
 			}
+
 			//new vehicle starts where old finished
 			for(int i=0; i<_k-1; i++)
 				dom(*this, succ[_n+_k+i], _n+(i+1));
@@ -133,13 +132,16 @@ public:
 //*/
 			//cost matrix
 			IntArgs c (rs*rs, p_in->getDistanceMatrix());
+
 			//zero as infinity - no loops
 			for (int i=0; i<rs; i++)	
 		      for (int j=0; j<rs; j++)	
 		        if (p_in->dist(i,j) == 0)
 		          rel(*this, succ[i], IRT_NQ, j);
 
-		    distinct(*this, succ);
+		    //distinct(*this, succ);
+
+		    
 
 		    // Cost of each edge
 			IntVarArgs costs(*this, rs, Int::Limits::min, Int::Limits::max);
@@ -147,13 +149,35 @@ public:
 			circuit(*this, c, succ, costs, total, opt.icl());
 
 			// branch on something
-			branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
+			//* //BASIC
+			//branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
+			branch(*this, vehicle, INT_VAR_MAX_MAX(), INT_VAL_MAX());
 
 			// First enumerate cost values, prefer those that maximize cost reduction
 			branch(*this, costs, INT_VAR_REGRET_MAX_MAX(), INT_VAL_SPLIT_MIN());
 
 			// Then fix the remaining successors
 			branch(*this, succ,  INT_VAR_MIN_MIN(), INT_VAL_MIN());
+			branch(*this, vehicles, INT_VAL_MIN());
+
+			/* //BLUE
+			//branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
+			branch(*this, vehicle, INT_VAR_SIZE_MIN(), INT_VAL_MAX());
+
+			// First enumerate cost values, prefer those that maximize cost reduction
+			branch(*this, costs, INT_VAR_REGRET_MAX_MAX(), INT_VAL_SPLIT_MAX());
+
+			// Then fix the remaining successors
+			branch(*this, succ,  INT_VAR_MIN_MIN(), INT_VAL_MIN());
+//*/
+
+			/* //ORANGE - RECORDED
+			branch(*this, vehicle, INT_VAR_MAX_MAX(), INT_VAL_MAX());
+
+			branch(*this, costs, INT_VAR_REGRET_MAX_MAX(), INT_VAL_SPLIT_MAX());
+
+			branch(*this, succ,  INT_VAR_MIN_MIN(), INT_VAL_MIN());
+//*/
 		}
 
 	}
@@ -309,9 +333,9 @@ int main(int argc, char* argv[]) {
 	opt.model(VRPSolver::MODEL_TASK4);
 	opt.model(VRPSolver::MODEL_TASK3, "TASK3", "Find a lower bound to K");
 	opt.model(VRPSolver::MODEL_TASK4, "TASK4", "Find min tot length");
-	opt.instance("../data/augerat-r/P/P-n019-k02.xml");
+	opt.instance("../data/augerat-r/P/P-n051-k10.xml");
 
-	opt.time(10 * 1000); // in milliseconds
+	opt.time(6 * 1000); // in milliseconds
 
 	opt.parse(argc, argv);
 
@@ -403,6 +427,7 @@ int main(int argc, char* argv[]) {
 			//print_stats(stat);
 			//cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
 			////break;
+			s->print(cout);
 		}
 		out.draw();
 
@@ -419,7 +444,7 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Gecode exception: " << e.what() << std::endl;
 		return 1;
 	}
-	
+
 	delete p;
 	return 0;
 }
