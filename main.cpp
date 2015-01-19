@@ -111,7 +111,7 @@ public:
 				dom(*this, vehicle[_n+i], i);
 				//assign ending nodes to vehicles
 				dom(*this, vehicle[_n+_k+i], i);
-//?				//breaking symmetry within each route
+/*			//breaking symmetry within each route
 				for(int j=1; j<_n; j++){
 					BoolVar bs(*this, 0, 1);
 					BoolVar be(*this, 0, 1);
@@ -119,6 +119,7 @@ public:
 					rel(*this, succ[_n+i] , IRT_LE, j, bs);
 					rel(*this, be, BOT_IMP,  bs, 1);
 				}
+				*/
 			}
 
 			//new vehicle starts where old finished
@@ -149,9 +150,9 @@ public:
 			circuit(*this, c, succ, costs, total, opt.icl());
 
 			// branch on something
-			//* //BASIC
+			/* //BASIC
 			//branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
-			branch(*this, vehicle, INT_VAR_MAX_MAX(), INT_VAL_MAX());
+			branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
 
 			// First enumerate cost values, prefer those that maximize cost reduction
 			branch(*this, costs, INT_VAR_REGRET_MAX_MAX(), INT_VAL_SPLIT_MIN());
@@ -159,8 +160,9 @@ public:
 			// Then fix the remaining successors
 			branch(*this, succ,  INT_VAR_MIN_MIN(), INT_VAL_MIN());
 			branch(*this, vehicles, INT_VAL_MIN());
+			//*/
 
-			/* //BLUE
+			//* //BLUE
 			//branch(*this, vehicle, INT_VAR_NONE(), INT_VAL_MIN());
 			branch(*this, vehicle, INT_VAR_SIZE_MIN(), INT_VAL_MAX());
 
@@ -333,7 +335,7 @@ int main(int argc, char* argv[]) {
 	opt.model(VRPSolver::MODEL_TASK4);
 	opt.model(VRPSolver::MODEL_TASK3, "TASK3", "Find a lower bound to K");
 	opt.model(VRPSolver::MODEL_TASK4, "TASK4", "Find min tot length");
-	opt.instance("../data/augerat-r/P/P-n051-k10.xml");
+	opt.instance("../data/augerat-r/P/P-n055-k08.xml");
 
 	opt.time(6 * 1000); // in milliseconds
 
@@ -427,7 +429,6 @@ int main(int argc, char* argv[]) {
 			//print_stats(stat);
 			//cout << "\ttime: " << t.stop() / 1000 << "s" << endl;
 			////break;
-			s->print(cout);
 		}
 		out.draw();
 

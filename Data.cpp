@@ -255,7 +255,7 @@ Output::Output(const Input& my_in) :
 		in(my_in) {
 // Insert the code that initialize the data structures of the
 // output object based in the input object
-	//routes.clear();
+	routes.clear();
 	//done by setSolution() in main.cpp
 }
 
@@ -277,7 +277,7 @@ ostream& operator<<(ostream& os, const Output& out) {
 		os << "Map is empty" <<endl;
 		return os;
 	}
-	if(out.routes.at(0).size() > 2){
+	if(out.routes.size() > 1 ) { //at(0).size() > 2){
 		for (auto r : out.routes) {
 			os << "Route " << r.first << ": ";
 			std::copy(r.second.begin(), r.second.end(), std::ostream_iterator<int>(os, " "));
